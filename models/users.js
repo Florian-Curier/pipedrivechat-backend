@@ -15,11 +15,8 @@ const userSchema = mongoose.Schema({
     google_email: String,
     pipedrive_tokens: tokenSchema,
     google_tokens: tokenSchema,
-    google_user_id: String,
-    pipedrive_refresh_token:String,
-    google_refresh_token:String,
     registration_date: {type:Date,default:Date.now()},
-    last_login_data: Date
+    last_login_date: Date
 });
 
 const User = mongoose.model('users', userSchema);
