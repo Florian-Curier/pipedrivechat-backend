@@ -71,12 +71,13 @@ const getPipedriveProfile = async (domain, accessToken) => {
     
     const refreshGoogleToken = async (refreshToken) => {
     
-            const response = await fetch ('https://oauth.pipedrive.com/oauth/token',{
+            const response = await fetch ('https://oauth2.googleapis.com/token',{
                 method: 'POST',
-                headers: {'Content-type' : 'application/x-www-form-urlencoded',
-                            'Authorization' : `Basic ${GOOGLE_CREDENTIALS_64}}`
+                headers: {'Content-type' : 'application/x-www-form-urlencoded'
                 },
                 body: new URLSearchParams({
+                    client_id : GOOGLE_CLIENT_ID,
+                    client_secret: GOOGLE_CLIENT_SECRET,
                     grant_type : 'refresh_token',
                     refresh_token : refreshToken,
           }) 
