@@ -49,7 +49,7 @@ router.get ('/pipedrive/callback', async (req, res ) => {
             await user.save();
 
         }   else {
-            // mise à jour du user si il exist déja
+            // mise à jour du user si il existz déja
             user = await User.updateOne(
                 {pipedrive_user_id: profile.id, pipedrive_company_id: profile.company_id }, 
                 { $set : {
@@ -75,8 +75,18 @@ router.get ('/pipedrive/callback', async (req, res ) => {
     };
 }); 
 
+// Autorisation Google
+
+router.get('/google', (req, res) => {
+    const user_id = req.query.user_id
+    const company_id = req.query.company_id
+    const domain = req.query.domain
 
 
+    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_CALLBACK_URI}&response_type=code&access_type=offline&scope=${GOOGLE_SCOPE}&state=${user_id} ${company_id} ${domain}`)
+
+
+})
 
 
 // Callback Google > echange du code avec les tokens
@@ -88,7 +98,10 @@ router.get ('/google/callback', async (req, res ) => {
 
     try {
         const tokens = await getGoogleTokens(code)
-        const profile =  jwtDecode(tokens.id_token)
+        const profile =  jwtDecode(tokens.id_token) // decode jwt avec les infos user
+
+        //mise jour du user avec les infos en BDD
+
         const userGoogle = await User.updateOne(
                         {pipedrive_user_id : splitState[0], pipedrive_company_id: splitState[1]},
                         {$set: {
@@ -100,7 +113,7 @@ router.get ('/google/callback', async (req, res ) => {
                             google_email: profile.email
                         }}
         )
-    res.redirect(`${splitState[2]}/settings/marketplace/app/${PIPEDRIVE_CLIENT_ID}/app-settings`)
+    res.redirect(`http://localhost:3001/install-confirmation?domain=${splitState[2]}&client_id=${PIPEDRIVE_CLIENT_ID}&company_id=${splitState[1]}&user_id=${splitState[0]}`)
 }    catch(err) {
     console.log(err)
     res.status(500).json({result: false, error: 'Sever Error'})
