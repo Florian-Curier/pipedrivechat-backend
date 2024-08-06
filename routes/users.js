@@ -33,8 +33,6 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
 
   let userData = await User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
 
-
-
   if (userData !== null) {
 
  // Après avoir trouvé un user, vérification de la validité du token pour le rafraichir si besoin
@@ -43,6 +41,7 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
 
 
     if (Date.now() > expirationDate) {
+
       try {
 
         const tokens = await refreshGoogleToken(userData.google_tokens.refresh_token)
@@ -94,15 +93,17 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
     // Si réponse ok on renvoie la liste des channels
 
     if (channelsResponse.status === 200) {
-      res.json({ result: true, channels: channels.spaces })
+
+        let channelsFiltered = channels.spaces.filter(e => e.spaceType !=='SPACE')
+
+
+      res.json({ result: true, channels: channelsFiltered })
     } else {
 
     // Si erreur on renvoie le code dans le HTTP et le message d'erreur dans error
       
       res.status(channels.error.code).json({ result: false, error: channels.error })
     }
-
-  
 
   } else { 
       //Erreur  utilisateur not found en BDD  (if initial)
