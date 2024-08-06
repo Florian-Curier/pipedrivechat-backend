@@ -3,7 +3,8 @@ const User = require('../models/users');
 var router = express.Router();
 const { refreshGoogleToken } = require('../modules/OAuth')
 
-// GET user by company id & user id
+// ROUTE GET USER
+
 router.get('/:company_id/:user_id', async (req, res) => {
 
   const userData = await User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
@@ -26,6 +27,7 @@ router.get('/:company_id/:user_id', async (req, res) => {
 });
 
 
+// ROUTE GET CHANNELS BY USER
 
 router.get('/channels/:company_id/:user_id', async (req, res) => {
 
