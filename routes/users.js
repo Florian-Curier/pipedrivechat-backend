@@ -35,8 +35,6 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
 
   let userData = await User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
 
-
-
   if (userData !== null) {
 
  // Après avoir trouvé un user, vérification de la validité du token pour le rafraichir si besoin
@@ -69,7 +67,7 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
     
         } else {
 
-         // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
+       // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
           
           res.status(401).json(tokens)
           console.log('failed refresh token')
@@ -107,7 +105,8 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
   
 
   } else { 
-      //Erreur  utilisateur not found en BDD  (if initial)
+
+     //Erreur  utilisateur not found en BDD  (if initial)
     res.status(404).json({ result: false, error: 'User Not Found' })
   }
 
