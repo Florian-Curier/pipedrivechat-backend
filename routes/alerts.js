@@ -58,8 +58,43 @@ router.post("/", (req, res) => {
     })
 })
 
+// Renvoie une alerte en fonction de l'id renseigné
+router.get('/:alert_id', (req, res) => {
+    Alert.findOne({_id: req.params.alert_id}).then(alert => {
+        if(!alert){
+            res.json({result: false, error: "Alert not found"})
+        } else{
+            res.json({result: true, alert})
+        }
+    })
+})
+
+// Modifie une alerte
+router.put('/', (req, res) => {
+    const { alert_id, google_channel_id, google_channel_name, trigger_id, trigger_name, message } = req.body
+
+    Alert.updateOne({_id: alert_id}, {google_channel_id, google_channel_name, trigger_id, trigger_name, message, last_update_date: Date.now()}).then(alert => {
+        if(alert.modifiedCount > 0){
+            res.json({result: true})
+        } else {
+            res.json({result: false, error: "Unable to modify alert"})
+        }
+    })
+})
+
+// Supprime une alerte
+router.delete('/:alert_id', (req, res) => {
+    Alert.deleteOne({_id: req.params.alert_id}).then(data => {
+        if(data.deletedCount > 0){
+            res.json({result: true})
+        } else {
+            res.json({result: false, error: "Unable to delete alert"})
+        }
+    })
+})
 
 
+// Renvoie la liste des alertes de l'utilisateur
 router.get('/:company_id/:user_id', (req, res) => {
     User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
     .then (userData => {
@@ -68,13 +103,11 @@ router.get('/:company_id/:user_id', (req, res) => {
           .populate('trigger_id')
           .then(alertData => {
               res.json({ result: true, alerts : alertData });
-  
           });
       } else {
           res.json({ result: false, error: 'user not found' });
       }
     });
-  
   });  
   
 
