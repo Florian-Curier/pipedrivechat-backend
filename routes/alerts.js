@@ -18,20 +18,13 @@ router.post("/", (req,res) => {
     })
 })
 
-router.get('/test', (req, res) => {
-    Alert.find()
-    .populate('user_id')
-    .then(data => {
-        
-      res.json({ allUsers: data });
-    });
-   });
 
 
 
  router.get('/:company_id/:user_id', (req, res) => {
   User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
   .then (userData => {
+    if(userData !== null) {
         console.log(userData)
 
         Alert.find({user_id : userData._id})
@@ -39,9 +32,12 @@ router.get('/test', (req, res) => {
         
         .then(alertData => {
             console.log(alertData)
-            res.json({ alert: alertData });
+            res.json({ result: true, alert: alertData });
 
         });
+    } else {
+        res.json({ result: false });
+    }
   });
 
 }); 
