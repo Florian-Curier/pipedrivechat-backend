@@ -25,18 +25,15 @@ router.post("/", (req,res) => {
   User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
   .then (userData => {
     if(userData !== null) {
-        console.log(userData)
-
         Alert.find({user_id : userData._id})
         .populate('trigger_id')
         
         .then(alertData => {
-            console.log(alertData)
-            res.json({ result: true, alert: alertData });
+            res.json({ result: true, alerts : alertData });
 
         });
     } else {
-        res.json({ result: false });
+        res.json({ result: false, error: 'user not found' });
     }
   });
 
