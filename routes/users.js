@@ -1,7 +1,7 @@
 var express = require('express');
 const User = require('../models/users');
 var router = express.Router();
-const { refreshGoogleToken } = require('../modules/OAuth')
+const { refreshGoogleToken } = require('../modules/refreshTokens')
 
 // ROUTE GET USER
 
@@ -31,48 +31,58 @@ router.get('/:company_id/:user_id', async (req, res) => {
 
 router.get('/channels/:company_id/:user_id', async (req, res) => {
 
-// Recupération du user en BDD
+  try {
 
   let userData = await User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
 
-  if (userData !== null) {
+  if (userData === null) { 
+      return res.status(404).json({ result: false, error: 'User Not Found' })
+  }
 
  // Après avoir trouvé un user, vérification de la validité du token pour le rafraichir si besoin
 
     const expirationDate = new Date(userData.google_tokens.expiration_date).getTime()
-
-
     if (Date.now() > expirationDate) {
 
-      try {
+        const tokens = await refreshGoogleToken(userData)
 
-        const tokens = await refreshGoogleToken(userData.google_tokens.refresh_token)
-
-        // Si le raffraichissement renvoie bien acess token, on met à jour la bdd avec le nouveau acess token
-
-        if (tokens.access_token) {
-          const updateToken = await User.updateOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id },
-            {
-              $set: {
-                google_tokens: {
-                  access_token: tokens.access_token,
-                  refresh_token : userData.google_tokens.refresh_token,
-                  expiration_date: Date.now() + tokens.expires_in * 1000
-                }
-              }
-            });
-
-         // Puis on met à jour le user avec les nouvelles donéées 
-
-          userData = await User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id }) 
-    
-        } else {
-
-       // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
-          
-          res.status(401).json(tokens)
+        if (!tokens.result) {
+        // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
           console.log('failed refresh token')
+         return res.status(401).json(tokens)
+ 
+        } else {
+          console.log('token refreshed')
         }
+       
+        
+         // Puis on met à jour la variable user avec les nouvelles donéées 
+          userData = await User.findOne({_id: userData._id }) 
+    
+        } 
+
+        // Fetch de l'api Google pour récupérer les channels , une fois qu'on est sur d'avoir un token valide
+        const channelsResponse = await fetch('https://chat.googleapis.com/v1/spaces', {
+          headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}` }
+        })
+    
+        const channels = await channelsResponse.json()
+    
+    
+        // Si réponse ok on renvoie la liste des channels avec un filtre pour exclure les DM
+    
+        if (channelsResponse.ok) {
+    
+            let channelsFiltered = channels.spaces.filter(e => e.spaceType ==='SPACE')
+            res.json({ result: true, channels: channelsFiltered })
+
+        } else {
+    
+        // Si erreur on renvoie le code dans le HTTP et le message d'erreur dans error
+          
+          res.status(channels.error.code).json({ result: false, error: channels.error })
+        }
+
       }
       catch (err) {
         // Catch des erreurs potentielles
@@ -81,38 +91,6 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
         res.status(500).json({ result: false, error: 'Server Error' })
       }
 
-    };
-    
-    // Fetch de l'api Google pour récupérer les channels , une fois qu'on est sur d'avoir un token valide
-
-    const channelsResponse = await fetch('https://chat.googleapis.com/v1/spaces', {
-      headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}` }
-    })
-
-    const channels = await channelsResponse.json()
-
-
-    // Si réponse ok on renvoie la liste des channels
-
-    if (channelsResponse.status === 200) {
-
-        let channelsFiltered = channels.spaces.filter(e => e.spaceType !=='SPACE')
-
-
-      res.json({ result: true, channels: channelsFiltered })
-    } else {
-
-    // Si erreur on renvoie le code dans le HTTP et le message d'erreur dans error
-      
-      res.status(channels.error.code).json({ result: false, error: channels.error })
-    }
-
-  } else { 
-
-     //Erreur  utilisateur not found en BDD  (if initial)
-    res.status(404).json({ result: false, error: 'User Not Found' })
-  }
-
-});
+    });
 
 module.exports = router;

@@ -1,16 +1,17 @@
 var express = require('express');
 var router = express.Router();
 const User = require('../models/users')
-const { getPipedriveTokens, getPipedriveProfile, getGoogleTokens} = require('../modules/OAuth');
 const {jwtDecode} = require('jwt-decode')
-
 
 // Définition variable + import variable env
 
 const PIPEDRIVE_CLIENT_ID = process.env.PIPEDRIVE_CLIENT_ID;
-const PIPEDRIVE_CALLBACK_URI = process.env.PIPEDRIVE_CALLBACK_URI
+const PIPEDRIVE_CLIENT_SECRET = process.env.PIPEDRIVE_CLIENT_SECRET;
+const PIPEDRIVE_CALLBACK_URI = process.env.PIPEDRIVE_CALLBACK_URI;
+const PIPEDRIVE_CREDENTIALS_64 = Buffer.from(`${PIPEDRIVE_CLIENT_ID}:${PIPEDRIVE_CLIENT_SECRET}`).toString('base64')
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CALLBACK_URI = process.env.GOOGLE_CALLBACK_URI
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_CALLBACK_URI = process.env.GOOGLE_CALLBACK_URI;
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/chat.messages https://www.googleapis.com/auth/chat.spaces https://www.googleapis.com/auth/userinfo.email'
 
 // Authorize pipedrive > redirection vers l'url d'autorisation pour avoir le code
@@ -23,12 +24,39 @@ router.get('/pipedrive', (req, res)=>{
 // Callback pipedrive > échange du code d'autorisation contre les token et création du user
 
 router.get ('/pipedrive/callback', async (req, res ) => {
-    const code = req.query.code
-    try {
-        const tokens = await getPipedriveTokens(code) // recupération l'access token
-        const profile = await getPipedriveProfile(tokens.api_domain, tokens.access_token) // récupération du profil
 
-        let user = await User.findOne({pipedrive_user_id: profile.id, pipedrive_company_id: profile.company_id}) // vérification si user existe et création si n'existe pas
+    // Récupération du code dans la query puis fetch 
+
+    const code = req.query.code
+
+    try {
+
+        const tokensResponse =  await fetch ('https://oauth.pipedrive.com/oauth/token',{
+            method: 'POST',
+            headers: {'Content-type' : 'application/x-www-form-urlencoded',
+                        'Authorization' : `Basic ${PIPEDRIVE_CREDENTIALS_64}`
+            },
+            body: new URLSearchParams({
+                grant_type : 'authorization_code',
+                redirect_uri : PIPEDRIVE_CALLBACK_URI,
+                code : code
+      }) 
+    });
+
+        const tokens = await tokensResponse.json()
+
+        // Puis on récupère le profile du user pipedrive avec le token
+
+        const profileResponse = await fetch(`${tokens.api_domain}/v1/users/me`,{
+            headers:{ 'Authorization': `Bearer ${tokens.access_token}`}
+          })
+
+        const profileJson = await profileResponse.json()
+        const profile = profileJson.data
+
+        // verification si user existe en BDD et création si n'existe pas
+
+        let user = await User.findOne({pipedrive_user_id: profile.id, pipedrive_company_id: profile.company_id}) 
         if (!user) {
             user = new User({
                 pipedrive_user_name: profile.name,
@@ -49,6 +77,7 @@ router.get ('/pipedrive/callback', async (req, res ) => {
             await user.save();
 
         }   else {
+
             // mise à jour du user si il existz déja
             user = await User.updateOne(
                 {pipedrive_user_id: profile.id, pipedrive_company_id: profile.company_id }, 
@@ -77,18 +106,6 @@ router.get ('/pipedrive/callback', async (req, res ) => {
 
 // Autorisation Google
 
-router.get('/google', (req, res) => {
-    const user_id = req.query.user_id
-    const company_id = req.query.company_id
-    const domain = req.query.domain
-
-
-    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_CALLBACK_URI}&response_type=code&access_type=offline&scope=${GOOGLE_SCOPE}&state=${user_id} ${company_id} ${domain}`)
-
-
-})
-
-
 // Callback Google > echange du code avec les tokens
 
 router.get ('/google/callback', async (req, res ) => {
@@ -97,7 +114,21 @@ router.get ('/google/callback', async (req, res ) => {
     const splitState = state.split(' ');
 
     try {
-        const tokens = await getGoogleTokens(code)
+        const tokensResponse = await fetch ('https://oauth2.googleapis.com/token',{
+            method: 'POST',
+            headers: {'Content-type' : 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                client_id : GOOGLE_CLIENT_ID,
+                client_secret: GOOGLE_CLIENT_SECRET,
+                grant_type : 'authorization_code',
+                redirect_uri : GOOGLE_CALLBACK_URI,
+                code : code
+            })
+        });
+
+        const tokens = await tokensResponse.json()
+
         const profile =  jwtDecode(tokens.id_token) // decode jwt avec les infos user
 
         //mise jour du user avec les infos en BDD
@@ -118,12 +149,25 @@ router.get ('/google/callback', async (req, res ) => {
     console.log(err)
     res.status(500).json({result: false, error: 'Sever Error'})
 
-}
-
-        
-    
-    }
+}}
 ); 
+
+
+
+/* 
+
+Route unused car redirection depuis la route call back pipedrive
+
+router.get('/google', (req, res) => {
+    const user_id = req.query.user_id
+    const company_id = req.query.company_id
+    const domain = req.query.domain
+
+
+    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_CALLBACK_URI}&response_type=code&access_type=offline&scope=${GOOGLE_SCOPE}&state=${user_id} ${company_id} ${domain}`)
+
+})
+ */
 
 
 module.exports = router;
