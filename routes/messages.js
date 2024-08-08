@@ -3,7 +3,7 @@ var router = express.Router();
 const Message = require('../models/messages')
 const Alert = require('../models/alerts')
 const User = require('../models/users')
-const { refreshGoogleToken } = require('../modules/refreshTokens')
+const { refreshGoogleToken, refreshPipedriveToken } = require('../modules/refreshTokens')
 
 // Renvoie la liste de tous les messages de l'utilisateur
 router.get('/:pipedrive_company_id/:pipedrive_user_id', (req, res) => {
@@ -45,18 +45,21 @@ router.get('/channel/:channel_id', (req, res) => {
 router.post('/', async (req, res) => {
 
     try
-     {
+     {  
         const alertData = await Alert.findOne({ pipedrive_webhook_id: req.body.meta.webhook_id})
-            .populate('user_id')
-            .populate('trigger_id')
+        .populate('user_id')
+
+        // Vérification du statut du deal et du précédent état pour n'envoyer le deal que si statut est passé à won
+
+        if (req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won' || req.body.previous.status === 'won' ) {
+            return  res.status(202).json({result : false , message : 'Deal not won or already won , no message sent'})
+        }
 
         let userData = alertData.user_id
-        let triggerData = alertData.trigger_id
 
+        const googleTokenExpDate = new Date(userData.google_tokens.expiration_date)
 
-        const expirationDate = new Date(userData.google_tokens.expiration_date)
-
-        if (Date.now() > expirationDate) {
+        if (Date.now() > googleTokenExpDate) {
             const tokens = await refreshGoogleToken(userData)
             if (!tokens.result) {
                 // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
@@ -90,10 +93,17 @@ router.post('/', async (req, res) => {
         })
         await newMessage.save()
 
+        if(!googleResponse.ok) {
+            return response.status(400).json({result : false, error : 'Fail to send message', data: googleData})
+        }
+
+        res.status(200).json({result: true, message : 'Message sent to Google Chat'})
+
     } catch (err) {
         console.log(err)
+        res.sendStatus(500)
     };
-    res.sendStatus(200)
+    
 
 })
 
