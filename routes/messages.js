@@ -66,7 +66,7 @@ router.post('/', async (req, res) => {
             userData = await User.findOne({ _id: userData._id })
         }
 
-        // ECRIRE ICI LE CODE POUR GENERER UN MESSAGE AVEC DES VARIABLES
+        let message = alertData.message     // ECRIRE ICI LE CODE POUR GENERER UN MESSAGE AVEC DES VARIABLES
 
         // Puis on fetch le endoint google pour envoyer le message
 
