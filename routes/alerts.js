@@ -1,62 +1,82 @@
 var express = require('express');
 var router = express.Router();
+const { refreshPipedriveToken } = require ('../modules/refreshTokens')
 const Alert = require("../models/alerts")
 const User = require("../models/users")
 
 
 // Enregistre une nouvelle alerte dans la BDD + Créée un webhook pipedrive
-router.post("/", (req, res) => {
-    const { alert_name, google_channel_id, google_channel_name, trigger_id, trigger_name, message, pipedrive_user_id, pipedrive_comany_id } = req.body
+router.post("/", async (req, res) => {
+    const { alert_name, google_channel_id, google_channel_name, trigger_id, trigger_name, message, pipedrive_user_id, pipedrive_company_id } = req.body
 
     // Vérifie l'existance de l'user en BDD avec les informations transmises
-    User.findOne({ pipedrive_user_id: pipedrive_user_id, pipedrive_comany_id: pipedrive_comany_id }).then(userData => {
+
+        let userData = await User.findOne({ pipedrive_user_id: pipedrive_user_id, pipedrive_company_id: pipedrive_company_id })
         
         if (!userData) {
-            res.json({ result: false, error: "User was not found" })
-        } else {
-            const user = userData
+          return  res.status(404).json({ result: false, error: "User was not found" })
+        } 
+        // Vérifie que le nom de l'alerte n'existe pas déjà et sinon créer l'alerte en BDD et le webhook associé
 
-            // Vérifie que le nom de l'alerte n'existe pas déjà et sinon créer l'alerte en BDD et le webhook associé
-            Alert.findOne({ alert_name }).then(alertData => {
+          const alertData = await  Alert.findOne({ alert_name })
                 if (alertData) {
-                    res.json({ result: false, error: "The alert name already exists" })
-                } else {
-                    // const token = refreshPipedriveToken(user)
-                    // let eventType = trigger_name === "Deal Added" ? "added" : "updated"
-                    // Requête à l'API pipedrive pour créer le webhhok associé à l'alerte
-                    // fetch('https://api-proxy.pipedrive.com/api/v1/webhooks', {
-                    //     method: 'POST',
-                    //     headers: { Authorization: `Bearer ${token.access_token}` },
-                    //     body: new URLSearchParams({
-                    //         subscription_url: "https://backend-pipedrive-test.vercel.app/messages",
-                    //         event_action: eventType,
-                    //         event_object: "deal",
-                    //     })
-                    // }).then(reponse => reponse.json()).then(webhookData => {
-                        // console.log("webhook: ", webhookData)
-                        // const pipedrive_webhook_id = webhookData.data.id
-                        const pipedrive_webhook_id = "wh0987654321"
+                     return res.status(400).json({ result: false, error: "The alert name already exists" })
+                     } 
+
+        const expirationDate = new Date(userData.pipedrive_tokens.expiration_date).getTime()
+  
+              if (Date.now() > expirationDate) {
+    
+                    const tokens = await refreshPipedriveToken(userData)
+                    console.log(tokens)
+    
+                    if (!tokens.result) {
+                        return  res.status(401).json({result: false, response : tokens})
+                    } else {
+                        console.log('token refreshed')
+                    }  }
+
+          userData = await User.findOne({_id: userData._id }) 
+
+        let eventType = trigger_name === "Deal Added" ? "added" : "updated"
+         
+        // Requête à l'API pipedrive pour créer le webhhok associé à l'alerte
+        const webhookResponse = await fetch('https://api-proxy.pipedrive.com/api/v1/webhooks', {
+                         method: 'POST',
+                         headers: { Authorization: `Bearer ${userData.pipedrive_tokens.access_token}` },
+                         body: new URLSearchParams({
+                             subscription_url: "https://pipedrivechat-backend.vercel.app/messages",
+                             event_action: eventType,
+                             event_object: "deal",
+                         })
+                     })
+                webhookData = await webhookResponse.json()
+
+
+                         console.log("webhook: ", webhookData)
+                const pipedrive_webhook_id = webhookData.data.id
+                        //const pipedrive_webhook_id = "wh0987654321"
                         // Création de l'alerte et enregistrement en BDD
-                        const newAlert = new Alert({
+              const newAlert = new Alert({
                             alert_name,
                             pipedrive_webhook_id,
                             google_channel_id,
                             google_channel_name,
-                            user_id: user._id,
+                            user_id: userData._id,
                             trigger_id,
                             message,
                             last_update_date: null,
-                        })
+                        });
     
-                        newAlert.save().then(newAlertData => {
-                            res.json({ result: true, alert: newAlertData })
-                        })
-                    // })
-                }
-            })
-        }
-    })
-})
+                    const newAlertData = await newAlert.save()
+
+                    res.json({result : true , newAlert: newAlertData})
+        
+                     });
+            
+            
+        
+
 
 // Renvoie une alerte en fonction de l'id renseigné
 router.get('/:alert_id', (req, res) => {
