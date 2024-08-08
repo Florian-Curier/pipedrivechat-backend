@@ -86,7 +86,9 @@ router.post("/", async (req, res) => {
     
                     const newAlertData = await newAlert.save()
 
-                    res.json({result : true , newAlert: newAlertData})
+            const routeResponse = await Alert.findOne({_id : newAlert._id}).populate('trigger_id')
+
+                    res.json({result : true , newAlert: routeResponse})
 
              } catch(err){
                 console.log(err)
@@ -165,7 +167,7 @@ try
         console.log(webhooksData)
 
         if (!webhooksResponse.ok) {
-            return res.stauts(400).json({result: false , error : 'Unable to delete webhook'})
+            return res.status(400).json({result: false , error : 'Unable to delete webhook'})
         }
 
         const deleteAlert = await  Alert.deleteOne({_id: req.params.alert_id})
