@@ -51,7 +51,7 @@ router.post('/', async (req, res) => {
 
         // Vérification du statut du deal et du précédent état pour n'envoyer le deal que si statut est passé à won
 
-        if (req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won' || req.body.previous.status === 'won' ) {
+        if ((req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won' )|| (req.body.previous.status === 'won') ) {
             return  res.status(202).json({result : false , message : 'Deal not won or already won , no message sent'})
         }
 
