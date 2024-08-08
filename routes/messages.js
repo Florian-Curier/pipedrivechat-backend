@@ -44,10 +44,9 @@ router.get('/channel/:channel_id', (req, res) => {
 
 router.post('/', async (req, res) => {
 
-    const { pipedrive_webhook_id } = req.body
     try
      {
-        const alertData = await Alert.findOne({ pipedrive_webhook_id: pipedrive_webhook_id })
+        const alertData = await Alert.findOne({ pipedrive_webhook_id: req.body.meta.webhook_id})
             .populate('user_id')
             .populate('trigger_id')
 
