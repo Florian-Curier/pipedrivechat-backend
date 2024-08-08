@@ -66,15 +66,7 @@ router.post('/', async (req, res) => {
             userData = await User.findOne({ _id: userData._id })
         }
 
-        let message;
-
-        // On vérifie si il existe un message personnalisé pour choisir le texte à envoyer
-
-        if (alertData.message) {
-            message = alertData.message
-        } else {
-            message = triggerData.default_message
-        }
+        // ECRIRE ICI LE CODE POUR GENERER UN MESSAGE AVEC DES VARIABLES
 
         // Puis on fetch le endoint google pour envoyer le message
 

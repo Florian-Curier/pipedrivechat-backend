@@ -1,7 +1,7 @@
 var express = require('express');
 const User = require('../models/users');
 var router = express.Router();
-const { refreshGoogleToken } = require('../modules/refreshTokens')
+const { refreshGoogleToken, refreshPipedriveToken } = require('../modules/refreshTokens')
 
 // ROUTE GET USER
 
@@ -92,5 +92,54 @@ router.get('/channels/:company_id/:user_id', async (req, res) => {
       }
 
     });
+
+
+// ROUTE GET WEBHOKKS BY USER : remonte tous les webhooks d'un user
+
+router.get('/webhooks/:company_id/:user_id', async (req, res) => {
+
+  try {
+
+  let userData = await User.findOne({ pipedrive_user_id: req.params.user_id, pipedrive_company_id: req.params.company_id })
+
+  if (userData === null) { 
+      return res.status(404).json({ result: false, error: 'User Not Found' })
+  }
+
+ // Après avoir trouvé un user, vérification de la validité du token pour le rafraichir si besoin
+
+    const expirationDate = new Date(userData.pipedrive_tokens.expiration_date).getTime()
+    
+    if (Date.now() > expirationDate) {
+
+        const tokens = await refreshPipedriveToken(userData)
+
+        if (!tokens.result) {
+        // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
+         return res.status(401).json(tokens)
+ 
+        } 
+      }
+
+      // Mise à jour du sur puis fetch des webhooks
+
+       userData = await User.findOne({_id : userData._id})
+
+      const webhooksResponse = await fetch(`${userData.api_domain}/v1/webhooks`, {
+        headers: {'Authorization' : `Bearer ${userData.pipedrive_tokens.access_token}`}
+      })
+      const webhooksData = await webhooksResponse.json()
+
+      res.json({result : true, webhooks : webhooksData.data})
+
+      }catch(err) {
+
+        console.log(err)
+
+      res.status(500).json({result : false, error : 'Server Error'})
+      }});
+
+
+
 
 module.exports = router;
