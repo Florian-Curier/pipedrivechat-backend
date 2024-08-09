@@ -3,7 +3,7 @@ var router = express.Router();
 const Message = require('../models/messages')
 const Alert = require('../models/alerts')
 const User = require('../models/users')
-const { isValidObjectId } = require ('mongoose');
+const { isValidObjectId } = require('mongoose');
 const { refreshGoogleToken, refreshPipedriveToken } = require('../modules/refreshTokens')
 
 // Renvoie la liste de tous les messages de l'utilisateur
@@ -25,8 +25,8 @@ router.get('/all/:pipedrive_company_id/:pipedrive_user_id', (req, res) => {
 
 // Renvoie la liste de tous les messages de l'utilisateur correspondants à l'alert_id envoyé
 router.get('/alert/:alert_id', (req, res) => {
-    if (!isValidObjectId(req.params.alert_id)){
-        return res.status(400).json({result: false, error : 'Invalid ObjectId'})
+    if (!isValidObjectId(req.params.alert_id)) {
+        return res.status(400).json({ result: false, error: 'Invalid ObjectId' })
     }
     Message.find({ alert_id: req.params.alert_id }).then(data => {
         res.json({ messages: data })
@@ -48,15 +48,14 @@ router.get('/channel/:channel_id', (req, res) => {
 
 router.post('/', async (req, res) => {
 
-    try
-     {  
-        const alertData = await Alert.findOne({ pipedrive_webhook_id: req.body.meta.webhook_id})
-        .populate('user_id')
+    try {
+        const alertData = await Alert.findOne({ pipedrive_webhook_id: req.body.meta.webhook_id })
+            .populate('user_id')
 
         // Vérification du statut du deal et du précédent état pour n'envoyer le deal que si statut est passé à won
 
-        if ((req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won' )|| (req.body?.previous?.status === 'won') ) {
-            return  res.status(202).json({result : false , message : 'Deal not won or already won , no message sent'})
+        if ((req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won') || (req.body?.previous?.status === 'won')) {
+            return res.status(202).json({ result: false, message: 'Deal not won or already won , no message sent' })
         }
 
         let userData = alertData.user_id
@@ -74,16 +73,21 @@ router.post('/', async (req, res) => {
         }
 
         // Génération du message en fonction des hashtags trouvés dans le message de l'alerte
-        
+
         let objReceive = req.body.meta.object
         let dealDatas = req.body.current
-        
+
         let messageFormated = alertData.message.split(' ').map((word, i) => {
-            if(word.startsWith('#')){
-              word = word.slice(objReceive.length + 2)
-              word = dealDatas[word]
+            if (word.startsWith('#')) {
+                console.log(word)
+                let lastDiese = word.lastIndexOf('#')
+                word = word.slice(objReceive.length + 2, lastDiese)
+
+                console.log(word)
+                word = dealDatas[word]
+                console.log(word)
             }
-            return word.toString()
+            return word
         })
         messageFormated = messageFormated.join(' ')
         console.log(messageFormated)
@@ -93,7 +97,7 @@ router.post('/', async (req, res) => {
 
         const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${alertData.google_channel_id}/messages`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}`},
+            headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}` },
             body: JSON.stringify({ text: messageFormated })
         })
         const googleData = await googleResponse.json()
@@ -111,17 +115,17 @@ router.post('/', async (req, res) => {
         })
         await newMessage.save()
 
-        if(!googleResponse.ok) {
-            return response.status(400).json({result : false, error : 'Fail to send message', data: googleData})
+        if (!googleResponse.ok) {
+            return response.status(400).json({ result: false, error: 'Fail to send message', data: googleData })
         }
 
-        res.status(200).json({result: true, message : 'Message sent to Google Chat'})
+        res.status(200).json({ result: true, message: 'Message sent to Google Chat' })
 
     } catch (err) {
         console.log(err)
         res.sendStatus(500)
     };
-    
+
 
 })
 
