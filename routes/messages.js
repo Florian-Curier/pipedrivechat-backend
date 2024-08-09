@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
 
         // Vérification du statut du deal et du précédent état pour n'envoyer le deal que si statut est passé à won
 
-        if ((req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won' )|| (req.body.previous.status === 'won') ) {
+        if ((req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won' )|| (req.body?.previous?.status === 'won') ) {
             return  res.status(202).json({result : false , message : 'Deal not won or already won , no message sent'})
         }
 
@@ -69,25 +69,39 @@ router.post('/', async (req, res) => {
                 // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
                 return res.status(401).json(tokens)
             }
-            // Puis on met à jour la variable user avec les nouvelles donéées 
+            // Puis on met à jour la variable user avec les nouvelles données 
             userData = await User.findOne({ _id: userData._id })
         }
 
-        let message = alertData.message     // ECRIRE ICI LE CODE POUR GENERER UN MESSAGE AVEC DES VARIABLES
+        // Génération du message en fonction des hashtags trouvés dans le message de l'alerte
+        
+        let objReceive = req.body.meta.object
+        let dealDatas = req.body.current
+        
+        let messageFormated = alertData.message.split(' ').map((word, i) => {
+            if(word.startsWith('#')){
+              word = word.slice(objReceive.length + 2)
+              word = dealDatas[word]
+            }
+            return word
+        })
+        messageFormated = messageFormated.join(' ')
+        console.log(messageFormated)
+        // let message = alertData.message     // ECRIRE ICI LE CODE POUR GENERER UN MESSAGE AVEC DES VARIABLES
 
         // Puis on fetch le endoint google pour envoyer le message
 
         const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${alertData.google_channel_id}/messages`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}`},
-            body: JSON.stringify({ text: message })
+            body: JSON.stringify({ text: messageFormated })
         })
         const googleData = await googleResponse.json()
 
         // Puis on va sauvegarder la data en bdd
 
         let newMessage = new Message({
-            message_text: message,
+            message_text: messageFormated,
             alert_id: alertData._id,
             pipedrive_event: req.body,
             google_response_status: googleResponse.status,
