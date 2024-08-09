@@ -83,7 +83,7 @@ router.post('/', async (req, res) => {
               word = word.slice(objReceive.length + 2)
               word = dealDatas[word]
             }
-            return word
+            return word.toString()
         })
         messageFormated = messageFormated.join(' ')
         console.log(messageFormated)
