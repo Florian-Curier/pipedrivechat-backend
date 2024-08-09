@@ -3,10 +3,11 @@ var router = express.Router();
 const Message = require('../models/messages')
 const Alert = require('../models/alerts')
 const User = require('../models/users')
+const { isValidObjectId } = require ('mongoose');
 const { refreshGoogleToken, refreshPipedriveToken } = require('../modules/refreshTokens')
 
 // Renvoie la liste de tous les messages de l'utilisateur
-router.get('/:pipedrive_company_id/:pipedrive_user_id', (req, res) => {
+router.get('/all/:pipedrive_company_id/:pipedrive_user_id', (req, res) => {
     Message.find().populate({
         path: 'alert_id',
         populate: {
@@ -24,6 +25,9 @@ router.get('/:pipedrive_company_id/:pipedrive_user_id', (req, res) => {
 
 // Renvoie la liste de tous les messages de l'utilisateur correspondants à l'alert_id envoyé
 router.get('/alert/:alert_id', (req, res) => {
+    if (!isValidObjectId(req.params.alert_id)){
+        return res.status(400).json({result: false, error : 'Invalid ObjectId'})
+    }
     Message.find({ alert_id: req.params.alert_id }).then(data => {
         res.json({ messages: data })
     })

@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { refreshPipedriveToken } = require ('../modules/refreshTokens')
 const { checkBody } = require('../modules/checkBody')
+const { isValidObjectId } = require ('mongoose');
 const Alert = require("../models/alerts")
 const User = require("../models/users")
 
@@ -103,8 +104,13 @@ router.post("/", async (req, res) => {
 
 // Renvoie une alerte en fonction de l'id renseigné
 router.get('/:alert_id', (req, res) => {
+
+    if (!isValidObjectId(req.params.alert_id)){
+        return res.status(400).json({result: false, error : 'Invalid ObjectId'})
+    }
     
-    Alert.findOne({_id: req.params.alert_id}).then(alert => {
+    Alert.findOne({_id: req.params.alert_id}).populate('trigger_id')
+    .then(alert => {
         if(!alert){
             res.json({result: false, error: "Alert not found"})
         } else{
