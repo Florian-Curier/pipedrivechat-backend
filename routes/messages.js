@@ -73,25 +73,18 @@ router.post('/', async (req, res) => {
         }
 
         // Génération du message en fonction des hashtags trouvés dans le message de l'alerte
-
         let objReceive = req.body.meta.object
         let dealDatas = req.body.current
 
         let messageFormated = alertData.message.split(' ').map((word, i) => {
             if (word.startsWith('#')) {
-                console.log(word)
                 let lastDiese = word.lastIndexOf('#')
                 word = word.slice(objReceive.length + 2, lastDiese)
-
-                console.log(word)
                 word = dealDatas[word]
-                console.log(word)
             }
             return word
         })
         messageFormated = messageFormated.join(' ')
-        console.log(messageFormated)
-        // let message = alertData.message     // ECRIRE ICI LE CODE POUR GENERER UN MESSAGE AVEC DES VARIABLES
 
         // Puis on fetch le endoint google pour envoyer le message
 
