@@ -77,15 +77,26 @@ router.post('/', async (req, res) => {
         let dealDatas = req.body.current
 
         let messageFormated = alertData.message.split(' ').map((word, i) => {
-            if (word.startsWith('#')) {
+            if (word.includes('#')) {
+                let firstDiese = word.indexOf('#')
+                let beginWord = word.slice(0, firstDiese)
+
                 let lastDiese = word.lastIndexOf('#')
+                let endWord = word.slice(lastDiese+1)
+
+                word = word.slice(firstDiese)
                 word = word.slice(objReceive.length + 2, lastDiese)
-                word = dealDatas[word]
+                
+                lastDiese = word.lastIndexOf('#')
+                if(lastDiese !== -1){
+                    word = word.slice(0, lastDiese)
+                }
+                word = beginWord + dealDatas[word] + endWord
             }
             return word
         })
         messageFormated = messageFormated.join(' ')
-
+        console.log(messageFormated)
         // Puis on fetch le endoint google pour envoyer le message
 
         const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${alertData.google_channel_id}/messages`, {
