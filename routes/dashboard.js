@@ -1,8 +1,21 @@
 var express = require('express');
 var router = express.Router();
 const User = require('../models/users')
+<<<<<<< HEAD
 const { refreshPipedriveToken, refreshGoogleToken } = require('../modules/refreshTokens')
+=======
+const { refreshPipedriveToken , refreshGoogleToken } = require('../modules/refreshTokens')
+>>>>>>> 2627b66bac6d1dad8951ccf01871f6dd7e9b3537
 const moment = require('moment');
+var express = require('express');
+var router = express.Router();
+const { isValidObjectId } = require('mongoose');
+const uniqid = require('uniqid');
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+
+
+const CLOUDINARY_URL = process.env.CLOUDINARY_URL
 
 
 router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', async (req, res) => {
@@ -124,7 +137,7 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
                 won_time: moment(month, 'YYYY-MM').format('MMMM YYYY'),
                 value: monthlySums[month]
             }));
-    
+
         return res.json({ result: true, deals: resultArray });
     }
     if (req.params.timeUnit === 'week') {
@@ -156,14 +169,14 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
             acc[year] = (acc[year] || 0) + deal.value;
             return acc;
         }, {});
-    
+
         const resultArray = Object.keys(yearlySums)
             .sort()  
             .map(year => ({
                 won_time: year,
                 value: yearlySums[year]
             }));
-    
+
         return res.json({ result: true, deals: resultArray });
     }
 
@@ -217,6 +230,7 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
         }
         })
 
+<<<<<<< HEAD
         router.post('/sendchart', async (req, res) => {
 
             try {
@@ -294,5 +308,75 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
         
         
         })
+=======
+
+    router.post('/sendChart', async (req, res) => {
+
+            console.log(req.body)
+          
+            const { pipedrive_company_id, pipedrive_user_id, google_channel_id, dashboard_name } = req.body
+            let pictureUrl = ''
+          
+            try {
+          
+              let userData = await User.findOne({ pipedrive_company_id, pipedrive_user_id })
+          
+              // Recupération de l'image 
+          
+              const photoPath = `./tmp/${uniqid()}.jpg`
+              const resultMove = await req.files.picture.mv(photoPath);
+          
+              // Upload cloudinary
+          
+              if (!resultMove) {
+          
+                const resultCloudinary = await cloudinary.uploader.upload(photoPath);
+                fs.unlinkSync(photoPath)
+                pictureUrl = resultCloudinary.secure_url
+          
+              } else {
+                return res.status(500).json({ result: false, error: 'Error whilde uploading picture' })
+              }
+          
+              // Refresh du token
+          
+              const expirationDate = new Date(userData.google_tokens.expiration_date).getTime()
+              if (Date.now() > expirationDate) {
+                const tokens = await refreshGoogleToken(userData)
+                if (!tokens.result) {
+                  console.log('failed refresh token')
+                  return res.status(401).json(tokens)
+                }
+                userData = await User.findOne({ _id: userData._id })
+              }
+          
+              // Fetch google pour envoyer le message
+          
+              const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${google_channel_id}/messages`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}` },
+                body: JSON.stringify({
+                    text : `${dashboard_name} :${pictureUrl}`
+                          })
+                        })
+          
+              const googleData = await googleResponse.json()
+          
+          
+          
+              if (!googleResponse.ok) {
+                return res.status(500).json({ result: false, error: 'Error while sending message', googleData })
+              }
+          
+              res.json({ result: true, message : 'Dashboard Sent' })
+          
+            } catch (err) {
+          
+              console.log(err)
+              res.status(500).json('Server Error')
+            }
+          
+          })
+>>>>>>> 2627b66bac6d1dad8951ccf01871f6dd7e9b3537
 
 module.exports = router;

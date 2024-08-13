@@ -5,21 +5,34 @@ const Alert = require('../models/alerts')
 const User = require('../models/users')
 const { isValidObjectId } = require('mongoose');
 const { refreshGoogleToken, refreshPipedriveToken } = require('../modules/refreshTokens')
+const { messagesDataByTimeUnit } = require('../modules/messagesDataByTimeUnit')
+const { checkDatesMessages } = require('../modules/checkDatesMessages')
 
 // Renvoie la liste de tous les messages de l'utilisateur
-router.get('/all/:pipedrive_company_id/:pipedrive_user_id', (req, res) => {
-    Message.find().populate({
+router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:timeUnit', (req, res) => {
+    const {pipedrive_company_id, pipedrive_user_id, startDate, endDate, timeUnit} = req.params
+    
+    let filterdate = checkDatesMessages(startDate, endDate)  
+    
+    if(!filterdate){
+        filterdate = {}
+    }
+
+    Message.find(filterdate).populate({
         path: 'alert_id',
         populate: {
             path: 'user_id',
             match: {
-                pipedrive_company_id: req.params.pipedrive_company_id,
-                pipedrive_user_id: req.params.pipedrive_user_id
+                pipedrive_company_id,
+                pipedrive_user_id,
             }
         }
     }).then(data => {
         let filtreData = data.filter(message => message.alert_id.user_id !== null)
-        res.json({ messages: filtreData })
+
+        let result = messagesDataByTimeUnit(filtreData, timeUnit)
+
+        res.json({ messages: result })
     })
 })
 
@@ -33,21 +46,49 @@ router.get('/alert/:alert_id', (req, res) => {
     })
 })
 
+// Renvoie la liste de tous les messages de l'utilisateur correspondants à l'alert_id envoyé pour le graphique
+router.get('/alert/:alert_id/:startDate/:endDate/:timeUnit', (req, res) => {
+    const { alert_id, startDate, endDate, timeUnit } = req.params
+    
+    let filterdate = checkDatesMessages(startDate, endDate)   
+    console.log(filterdate)
+    let request = { alert_id }
+    if(filterdate){
+        request = { alert_id, creation_date: filterdate.creation_date }
+    } 
+    console.log(request)
+    if (!isValidObjectId(alert_id)) {
+        return res.status(400).json({ result: false, error: 'Invalid ObjectId' })
+    }
+    Message.find(request).then(data => {
+        
+        let result = messagesDataByTimeUnit(data, timeUnit)
+        res.json({ messages: result })
+    })
+})
+
 // Renvoie la liste de tous les messages de l'utilisateur correspondants à l'channel_id envoyé
-router.get('/channel/:channel_id', (req, res) => {
-    Message.find().populate({
+router.get('/channel/:google_channel_id/:startDate/:endDate/:timeUnit', (req, res) => {
+    const { google_channel_id, startDate, endDate, timeUnit } = req.params
+
+    let filterdate = checkDatesMessages(startDate, endDate)  
+    
+    if(!filterdate){
+        filterdate = {}
+    }
+
+    Message.find(filterdate).populate({
         path: "alert_id",
-        match: { google_channel_id: req.params.channel_id }
+        match: { google_channel_id }
     }).then(data => {
         let filtreData = data.filter(message => message.alert_id !== null)
-        res.json({ messages: filtreData })
+        let result = messagesDataByTimeUnit(filtreData, timeUnit)
+        res.json({ messages: result })
     })
 })
 
 // Route de reception des webhook pipedrive et envoi message à google
-
 router.post('/', async (req, res) => {
-
     try {
         const alertData = await Alert.findOne({ pipedrive_webhook_id: req.body.meta.webhook_id })
             .populate('user_id')
@@ -77,15 +118,26 @@ router.post('/', async (req, res) => {
         let dealDatas = req.body.current
 
         let messageFormated = alertData.message.split(' ').map((word, i) => {
-            if (word.startsWith('#')) {
+            if (word.includes('#')) {
+                let firstDiese = word.indexOf('#')
+                let beginWord = word.slice(0, firstDiese)
+
                 let lastDiese = word.lastIndexOf('#')
+                let endWord = word.slice(lastDiese+1)
+
+                word = word.slice(firstDiese)
                 word = word.slice(objReceive.length + 2, lastDiese)
-                word = dealDatas[word]
+                
+                lastDiese = word.lastIndexOf('#')
+                if(lastDiese !== -1){
+                    word = word.slice(0, lastDiese)
+                }
+                word = beginWord + dealDatas[word] + endWord
             }
             return word
         })
         messageFormated = messageFormated.join(' ')
-
+        console.log(messageFormated)
         // Puis on fetch le endoint google pour envoyer le message
 
         const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${alertData.google_channel_id}/messages`, {
@@ -121,5 +173,73 @@ router.post('/', async (req, res) => {
 
 
 })
+
+
+// Get Google reactions by message id 
+
+router.get('/reactions/:message_id', async (req, res) => {
+    try {
+      if (!isValidObjectId(req.params.message_id)) {
+        return res.status(400).json({ result: false, error: 'Invalid Message Id' })
+      }
+      const messageData = await Message.findOne({ _id: req.params.message_id }).populate({ path: 'alert_id', populate: 'user_id' })
+  
+      if (!messageData) {
+        return res.status(404).json({ result: false, error: 'Message not found' })
+      }
+  
+      // Raffraichissement du Token Google si expiré
+  
+      let userData = messageData.alert_id.user_id
+      const expirationDate = new Date(userData.google_tokens.expiration_date).getTime()
+      if (Date.now() > expirationDate) {
+        const tokens = await refreshGoogleToken(userData)
+        if (!tokens.result) {
+          // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
+          console.log('failed refresh token')
+          return res.status(401).json(tokens)
+        }
+        // Puis on met à jour la variable user avec les nouvelles donéées 
+        userData = await User.findOne({ _id: userData._id })
+      }
+  
+      // Fetch des reactions Googles
+  
+      const reactionsResponse = await fetch(`https://chat.googleapis.com/v1/${messageData.google_response_details.name}/reactions`, {
+        headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}` }
+      })
+  
+      if (!reactionsResponse.ok) {
+        return res.status(400).json({ result: false, error: 'Error while fetching Google reactions' })
+      }
+  
+      const reactionsData = await reactionsResponse.json()
+  
+  
+  
+      // Calcul du total reaction et total par emoji
+  
+      if (!reactionsData.reactions) {
+        return res.json({ result: true, message_id: messageData._id, reactions: 0, emojis: {} })
+      }
+  
+  
+      const totalReactionsCount = reactionsData.reactions.length
+      let emojisCount = {}
+      for (let element of reactionsData.reactions) {
+        emojisCount[element.emoji.unicode] ? emojisCount[element.emoji.unicode]++ : emojisCount[element.emoji.unicode] = 1
+      }
+  
+  
+  
+      res.json({ result: true, message_id: messageData._id, reactions: totalReactionsCount, emojis: emojisCount })
+  
+    } catch (err) {
+      console.log(err)
+      res.status(500).json({ result: false, error: 'Server Error' })
+    }
+  
+  })
+  
 
 module.exports = router;
