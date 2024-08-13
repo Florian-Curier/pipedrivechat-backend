@@ -226,10 +226,8 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
 
 
     router.post('/sendChart', async (req, res) => {
-
-            console.log(req.body)
           
-            const { pipedrive_company_id, pipedrive_user_id, google_channel_id, dashboard_name } = req.body
+            const { pipedrive_company_id, pipedrive_user_id, google_channel_id, dashboard_name, picture } = req.body
             let pictureUrl = ''
           
             try {
@@ -238,15 +236,15 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
           
               // Recupération de l'image 
           
-              const photoPath = `./tmp/${uniqid()}.jpg`
-              const resultMove = await req.files.picture.mv(photoPath);
+            //   const photoPath = `./tmp/${uniqid()}.jpg`
+            //   const resultMove = await req.files.picture.mv(photoPath);
           
-              // Upload cloudinary
+              //Upload cloudinary
           
-              if (!resultMove) {
+              if (picture) {
           
-                const resultCloudinary = await cloudinary.uploader.upload(photoPath);
-                fs.unlinkSync(photoPath)
+                const resultCloudinary = await cloudinary.uploader.upload(picture);
+                // fs.unlinkSync(photoPath)
                 pictureUrl = resultCloudinary.secure_url
           
               } else {
@@ -266,7 +264,7 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
               }
           
               // Fetch google pour envoyer le message
-          
+              
               const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${google_channel_id}/messages`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}` },
