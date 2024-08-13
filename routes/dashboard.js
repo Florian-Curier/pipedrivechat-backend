@@ -119,11 +119,9 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
     });
 
     if (req.params.timeUnit === 'month') {
-        console.log(filteredDealsData)
         const monthlySums = filteredDealsData.reduce((acc, deal) => {
             const month = moment(deal.won_time).format('YYYY-MM');
             acc[month] = (acc[month] || 0) + deal.value;
-            console.log(acc)
             return acc;
         }, {});
     
