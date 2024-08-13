@@ -1,11 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const User = require('../models/users')
-<<<<<<< HEAD
-const { refreshPipedriveToken, refreshGoogleToken } = require('../modules/refreshTokens')
-=======
 const { refreshPipedriveToken , refreshGoogleToken } = require('../modules/refreshTokens')
->>>>>>> 2627b66bac6d1dad8951ccf01871f6dd7e9b3537
 const moment = require('moment');
 var express = require('express');
 var router = express.Router();
@@ -230,85 +226,6 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
         }
         })
 
-<<<<<<< HEAD
-        router.post('/sendchart', async (req, res) => {
-
-            try {
-                let userData = await User.findOne({ pipedrive_user_id: req.body.pipedrive_user_id, pipedrive_company_id: req.body.pipedrive_company_id })
-       
-                // Vérification du statut du deal et du précédent état pour n'envoyer le deal que si statut est passé à won
-        
-                // if ((req.body.meta.object === 'deal' && req.body.meta.action === 'updated' && req.body.current.status !== 'won') || (req.body?.previous?.status === 'won')) {
-                //     return res.status(202).json({ result: false, message: 'Deal not won or already won , no message sent' })
-                // }
-        
-                // let userData = alertData.user_id
-
-                console.log((userData.google_tokens.expiration_date))
-        
-                const googleTokenExpDate = new Date(userData.google_tokens.expiration_date)
-        
-                if (Date.now() > googleTokenExpDate) {
-                    const tokens = await refreshGoogleToken(userData)
-                    if (!tokens.result) {
-                        // Si le refresh token ne fonctionne pas on renvoie la réponse de Google et un statut 401
-                        return res.status(401).json(tokens)
-                    }
-                    // Puis on met à jour la variable user avec les nouvelles données 
-                    userData = await User.findOne({ _id: userData._id })
-                }
-        
-                // Génération du message en fonction des hashtags trouvés dans le message de l'alerte
-                // let objReceive = req.body.meta.object
-                // let dealDatas = req.body.current
-        
-                // let messageFormated = alertData.message.split(' ').map((word, i) => {
-                //     if (word.startsWith('#')) {
-                //         let lastDiese = word.lastIndexOf('#')
-                //         word = word.slice(objReceive.length + 2, lastDiese)
-                //         word = dealDatas[word]
-                //     }
-                //     return word
-                // })
-                messageFormated = 'https://www.opendatasoft.com/wp-content/uploads/2023/03/Blog-thumbnail-1.png'
-                google_channel_id = req.body.google_channel_id
-        
-                // Puis on fetch le endoint google pour envoyer le message
-        
-                const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${google_channel_id}/messages`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${userData.google_tokens.access_token}` },
-                    body: JSON.stringify({ text: messageFormated })
-                })
-                const googleData = await googleResponse.json()
-        
-                // Puis on va sauvegarder la data en bdd
-        
-                // let newMessage = new Message({
-                //     message_text: messageFormated,
-                //     alert_id: alertData._id,
-                //     pipedrive_event: req.body,
-                //     google_response_status: googleResponse.status,
-                //     google_response_details: googleData,
-                //     creation_date: Date.now(),
-                //     interactions: 0
-                // })
-                // await newMessage.save()
-        
-                if (!googleResponse.ok) {
-                    return response.status(400).json({ result: false, error: 'Fail to send message', data: googleData })
-                }
-        
-                res.status(200).json({ result: true, message: 'Message sent to Google Chat' })
-        
-            } catch (err) {
-                console.log(err)
-                res.sendStatus(500)
-            };
-        
-        
-        })
-=======
 
     router.post('/sendChart', async (req, res) => {
 
@@ -377,6 +294,5 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
             }
           
           })
->>>>>>> 2627b66bac6d1dad8951ccf01871f6dd7e9b3537
 
 module.exports = router;
