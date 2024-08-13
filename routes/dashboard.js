@@ -122,7 +122,7 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
                 won_time: moment(month, 'YYYY-MM').format('MMMM YYYY'),
                 value: monthlySums[month]
             }));
-    
+
         return res.json({ result: true, deals: resultArray });
     }
     if (req.params.timeUnit === 'week') {
@@ -154,14 +154,14 @@ router.get('/leaderboard/:company_id/:user_id/:startDate/:endDate/:timeUnit', as
             acc[year] = (acc[year] || 0) + deal.value;
             return acc;
         }, {});
-    
+
         const resultArray = Object.keys(yearlySums)
             .sort()  
             .map(year => ({
                 won_time: year,
                 value: yearlySums[year]
             }));
-    
+
         return res.json({ result: true, deals: resultArray });
     }
 

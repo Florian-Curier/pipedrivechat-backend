@@ -5,21 +5,34 @@ const Alert = require('../models/alerts')
 const User = require('../models/users')
 const { isValidObjectId } = require('mongoose');
 const { refreshGoogleToken, refreshPipedriveToken } = require('../modules/refreshTokens')
+const { messagesDataByTimeUnit } = require('../modules/messagesDataByTimeUnit')
+const { checkDatesMessages } = require('../modules/checkDatesMessages')
 
 // Renvoie la liste de tous les messages de l'utilisateur
-router.get('/all/:pipedrive_company_id/:pipedrive_user_id', (req, res) => {
-    Message.find().populate({
+router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:timeUnit', (req, res) => {
+    const {pipedrive_company_id, pipedrive_user_id, startDate, endDate, timeUnit} = req.params
+    
+    let filterdate = checkDatesMessages(startDate, endDate)  
+    
+    if(!filterdate){
+        filterdate = {}
+    }
+
+    Message.find(filterdate).populate({
         path: 'alert_id',
         populate: {
             path: 'user_id',
             match: {
-                pipedrive_company_id: req.params.pipedrive_company_id,
-                pipedrive_user_id: req.params.pipedrive_user_id
+                pipedrive_company_id,
+                pipedrive_user_id,
             }
         }
     }).then(data => {
         let filtreData = data.filter(message => message.alert_id.user_id !== null)
-        res.json({ messages: filtreData })
+
+        let result = messagesDataByTimeUnit(filtreData, timeUnit)
+
+        res.json({ messages: result })
     })
 })
 
@@ -33,21 +46,49 @@ router.get('/alert/:alert_id', (req, res) => {
     })
 })
 
+// Renvoie la liste de tous les messages de l'utilisateur correspondants à l'alert_id envoyé pour le graphique
+router.get('/alert/:alert_id/:startDate/:endDate/:timeUnit', (req, res) => {
+    const { alert_id, startDate, endDate, timeUnit } = req.params
+    
+    let filterdate = checkDatesMessages(startDate, endDate)   
+    console.log(filterdate)
+    let request = { alert_id }
+    if(filterdate){
+        request = { alert_id, creation_date: filterdate.creation_date }
+    } 
+    console.log(request)
+    if (!isValidObjectId(alert_id)) {
+        return res.status(400).json({ result: false, error: 'Invalid ObjectId' })
+    }
+    Message.find(request).then(data => {
+        
+        let result = messagesDataByTimeUnit(data, timeUnit)
+        res.json({ messages: result })
+    })
+})
+
 // Renvoie la liste de tous les messages de l'utilisateur correspondants à l'channel_id envoyé
-router.get('/channel/:channel_id', (req, res) => {
-    Message.find().populate({
+router.get('/channel/:google_channel_id/:startDate/:endDate/:timeUnit', (req, res) => {
+    const { google_channel_id, startDate, endDate, timeUnit } = req.params
+
+    let filterdate = checkDatesMessages(startDate, endDate)  
+    
+    if(!filterdate){
+        filterdate = {}
+    }
+
+    Message.find(filterdate).populate({
         path: "alert_id",
-        match: { google_channel_id: req.params.channel_id }
+        match: { google_channel_id }
     }).then(data => {
         let filtreData = data.filter(message => message.alert_id !== null)
-        res.json({ messages: filtreData })
+        let result = messagesDataByTimeUnit(filtreData, timeUnit)
+        res.json({ messages: result })
     })
 })
 
 // Route de reception des webhook pipedrive et envoi message à google
-
 router.post('/', async (req, res) => {
-
     try {
         const alertData = await Alert.findOne({ pipedrive_webhook_id: req.body.meta.webhook_id })
             .populate('user_id')
