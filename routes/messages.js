@@ -9,8 +9,10 @@ const { messagesDataByTimeUnit } = require('../modules/messagesDataByTimeUnit')
 const { checkDatesMessages } = require('../modules/checkDatesMessages')
 
 // Renvoie la liste de tous les messages de l'utilisateur
-router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:timeUnit', (req, res) => {
+router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:timeUnit', async (req, res) => {
     const {pipedrive_company_id, pipedrive_user_id, startDate, endDate, timeUnit} = req.params
+
+    console.log(pipedrive_company_id)
     
     let filterdate = checkDatesMessages(startDate, endDate)  
     
@@ -18,23 +20,13 @@ router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:t
         filterdate = {}
     }
 
-    Message.find(filterdate).populate({
-        path: 'alert_id',
-        populate: {
-            path: 'user_id',
-            match: {
-                pipedrive_company_id,
-                pipedrive_user_id,
-            }
-        }
-    }).then(data => {
-        let filtreData = data.filter(message => message.alert_id.user_id !== null)
-
-        let result = messagesDataByTimeUnit(filtreData, timeUnit)
-
+    const user = await User.findOne({pipedrive_user_id, pipedrive_company_id})
+    const alerts =  await Alert.find({user_id: user._id})
+    const messages= await Message.find({alert_id :{$in : alerts}})
+      //  let filtreData = data.filter(message => message.alert_id.user_id !== null)
+        let result = messagesDataByTimeUnit(messages, timeUnit)  
         res.json({ messages: result })
     })
-})
 
 // Renvoie la liste de tous les messages de l'utilisateur correspondants à l'alert_id envoyé
 router.get('/alert/:alert_id', (req, res) => {
@@ -68,7 +60,7 @@ router.get('/alert/:alert_id/:startDate/:endDate/:timeUnit', (req, res) => {
 })
 
 // Renvoie la liste de tous les messages de l'utilisateur correspondants à l'channel_id envoyé
-router.get('/channel/:google_channel_id/:startDate/:endDate/:timeUnit', (req, res) => {
+router.get('/channel/:google_channel_id/:startDate/:endDate/:timeUnit', async (req, res) => {
     const { google_channel_id, startDate, endDate, timeUnit } = req.params
 
     let filterdate = checkDatesMessages(startDate, endDate)  
@@ -77,15 +69,13 @@ router.get('/channel/:google_channel_id/:startDate/:endDate/:timeUnit', (req, re
         filterdate = {}
     }
 
-    Message.find(filterdate).populate({
-        path: "alert_id",
-        match: { google_channel_id }
-    }).then(data => {
-        let filtreData = data.filter(message => message.alert_id !== null)
-        let result = messagesDataByTimeUnit(filtreData, timeUnit)
+    let channelName = `spaces/${google_channel_id}`
+    //const alerts =  await Alert.find({google_channel_id})
+    const messages= await Message.find({'google_response_details.space.name' : channelName})
+
+        let result = messagesDataByTimeUnit(messages, timeUnit)
         res.json({ messages: result })
     })
-})
 
 // Route de reception des webhook pipedrive et envoi message à google
 router.post('/', async (req, res) => {
