@@ -55,7 +55,7 @@ router.get('/alert/:alert_id/:startDate/:endDate/:timeUnit', (req, res) => {
     Message.find(request).then(data => {
         
         let result = messagesDataByTimeUnit(data, timeUnit)
-        res.json({ messages: result })
+        res.json({ result: true, messages: result })
     })
 })
 
