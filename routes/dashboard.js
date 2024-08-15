@@ -92,6 +92,7 @@ router.get('/leaderboard/:pipedrive_company_id/:pipedrive_user_id/:startDate/:en
 
 
 router.get('/turnover/:company_id/:user_id/:startDate/:endDate/:timeUnit', async (req, res) => {
+
     try {
         // Récupération du user
         let userData = await User.findOne({ pipedrive_company_id: req.params.company_id, pipedrive_user_id: req.params.user_id })
@@ -127,36 +128,32 @@ router.get('/turnover/:company_id/:user_id/:startDate/:endDate/:timeUnit', async
 
         const dealsData = await dealsResponse.json()
 
-        //const startDate = new Date(req.params.startDate);
-        //const endDate = new Date(req.params.endDate);
 
-           // Vérification de la présence de startDate et endDate pour adapter les données envoyées
+        // Vérification de la présence de startDate et endDate pour adapter les données envoyées
            const startDateFormat = req.params.startDate !== 'null' ? new Date(req.params.startDate) : null
-           const endDateFormat = req.params.startDate  !== 'null' ? new Date(req.params.endDate) : null
+           const endDateFormat = req.params.endDate  !== 'null' ? new Date(req.params.endDate) : null
 
-   /*      const filteredDealsData = dealsData.data.filter(deal => {
-            const date = new Date(deal.won_time);
-            return date >= startDateFormat && date <= endDateFormat;
-        }); */
         let filteredDealsData = null
 
         if(startDateFormat || endDateFormat) {
             filteredDealsData = dealsData.data.filter(deal => {
                 const date = new Date(deal.won_time)
-
                 if(!startDateFormat){
                     return date <= endDateFormat && deal.value !==0
                 }else if(!endDateFormat){
+                  
                     return date >= startDateFormat && deal.value !==0
                 }else{
                     return date >= startDateFormat && date <= endDateFormat && deal.value !==0
                 } 
             });
-        }   else {
-            filteredDealsData = dealsData.data.filter(deal => {
-                 return deal.value !==0
-            })
-        }
+            }   else {
+                filteredDealsData = dealsData.data.filter(deal => {
+                    return deal.value !==0
+                })
+            }
+
+            console.log(filteredDealsData)
 
 
         if (req.params.timeUnit === 'month') {
@@ -275,12 +272,8 @@ router.post('/sendChart', async (req, res) => {
 
         let userData = await User.findOne({ pipedrive_company_id, pipedrive_user_id })
 
-        // Recupération de l'image 
 
-        //   const photoPath = `./tmp/${uniqid()}.jpg`
-        //   const resultMove = await req.files.picture.mv(photoPath);
-
-        //Upload cloudinary
+        //Upload cloudinary l'image base 64 récupérée dans le body
 
         if (picture) {
 
@@ -292,7 +285,7 @@ router.post('/sendChart', async (req, res) => {
             return res.status(500).json({ result: false, error: 'Error whilde uploading picture' })
         }
 
-        // Refresh du token
+        // Refresh du token si expiré
 
         const expirationDate = new Date(userData.google_tokens.expiration_date).getTime()
         if (Date.now() > expirationDate) {
@@ -304,7 +297,7 @@ router.post('/sendChart', async (req, res) => {
             userData = await User.findOne({ _id: userData._id })
         }
 
-        // Fetch google pour envoyer le message
+        // Fetch google pour envoyer le message avec l'url de l'image dans le text
 
         const googleResponse = await fetch(`https://chat.googleapis.com/v1/spaces/${google_channel_id}/messages`, {
             method: 'POST',
