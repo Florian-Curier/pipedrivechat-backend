@@ -153,8 +153,6 @@ router.get('/turnover/:company_id/:user_id/:startDate/:endDate/:timeUnit', async
                 })
             }
 
-            console.log(filteredDealsData)
-
 
         if (req.params.timeUnit === 'month') {
             const monthlySums = filteredDealsData.reduce((acc, deal) => {
@@ -248,10 +246,6 @@ router.get('/turnover/:company_id/:user_id/:startDate/:endDate/:timeUnit', async
 
             return res.json({ result: true, deals: resultArray });
         }
-
-        console.log(filteredDealsData)
-
-
 
         return res.json({ result: true, deals: filteredDealsData })
 
