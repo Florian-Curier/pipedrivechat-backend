@@ -37,7 +37,8 @@ router.get('/alert/:alert_id', (req, res) => {
     if (!isValidObjectId(req.params.alert_id)) {
         return res.status(400).json({ result: false, error: 'Invalid ObjectId' })
     }
-    Message.find({ alert_id: req.params.alert_id }).then(data => {
+    Message.find({ alert_id: req.params.alert_id }).sort({creation_date:-1}) 
+    .then(data => {
         res.json({ messages: data })
     })
 })
