@@ -124,15 +124,40 @@ router.get('/turnover/:company_id/:user_id/:startDate/:endDate/:timeUnit', async
             headers: { 'Authorization': `Bearer ${userData.pipedrive_tokens.access_token}` }
         })
 
+
         const dealsData = await dealsResponse.json()
 
-        const startDate = new Date(req.params.startDate);
-        const endDate = new Date(req.params.endDate);
+        //const startDate = new Date(req.params.startDate);
+        //const endDate = new Date(req.params.endDate);
 
-        const filteredDealsData = dealsData.data.filter(deal => {
+           // Vérification de la présence de startDate et endDate pour adapter les données envoyées
+           const startDateFormat = req.params.startDate !== 'null' ? new Date(req.params.startDate) : null
+           const endDateFormat = req.params.startDate  !== 'null' ? new Date(req.params.endDate) : null
+
+   /*      const filteredDealsData = dealsData.data.filter(deal => {
             const date = new Date(deal.won_time);
-            return date >= startDate && date <= endDate;
-        });
+            return date >= startDateFormat && date <= endDateFormat;
+        }); */
+        let filteredDealsData = null
+
+        if(startDateFormat || endDateFormat) {
+            filteredDealsData = dealsData.data.filter(deal => {
+                const date = new Date(deal.won_time)
+
+                if(!startDateFormat){
+                    return date <= endDateFormat && deal.value !==0
+                }else if(!endDateFormat){
+                    return date >= startDateFormat && deal.value !==0
+                }else{
+                    return date >= startDateFormat && date <= endDateFormat && deal.value !==0
+                } 
+            });
+        }   else {
+            filteredDealsData = dealsData.data.filter(deal => {
+                 return deal.value !==0
+            })
+        }
+
 
         if (req.params.timeUnit === 'month') {
             const monthlySums = filteredDealsData.reduce((acc, deal) => {
