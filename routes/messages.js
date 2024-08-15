@@ -13,16 +13,20 @@ router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:t
     const {pipedrive_company_id, pipedrive_user_id, startDate, endDate, timeUnit} = req.params
 
     console.log(pipedrive_company_id)
-    
-    let filterdate = checkDatesMessages(startDate, endDate)  
-    
-    if(!filterdate){
-        filterdate = {}
-    }
 
     const user = await User.findOne({pipedrive_user_id, pipedrive_company_id})
     const alerts =  await Alert.find({user_id: user._id})
-    const messages= await Message.find({alert_id :{$in : alerts}})
+    
+    let filterdate = checkDatesMessages(startDate, endDate)  
+    
+    let request = { alert_id :{$in : alerts} }
+    if(filterdate){
+        request = { alert_id :{$in : alerts}, creation_date: filterdate.creation_date }
+    } 
+
+    
+    const messages= await Message.find(request)
+    console.log("MASSAGES : ", messages.length)
       //  let filtreData = data.filter(message => message.alert_id.user_id !== null)
         let result = messagesDataByTimeUnit(messages, timeUnit)  
         res.json({ messages: result })
@@ -64,14 +68,17 @@ router.get('/channel/:google_channel_id/:startDate/:endDate/:timeUnit', async (r
     const { google_channel_id, startDate, endDate, timeUnit } = req.params
 
     let filterdate = checkDatesMessages(startDate, endDate)  
-    
-    if(!filterdate){
-        filterdate = {}
-    }
 
     let channelName = `spaces/${google_channel_id}`
+    
+    let request = { 'google_response_details.space.name' : channelName }
+    if(filterdate){
+        request = { 'google_response_details.space.name' : channelName, creation_date: filterdate.creation_date }
+    } 
+
+    
     //const alerts =  await Alert.find({google_channel_id})
-    const messages= await Message.find({'google_response_details.space.name' : channelName})
+    const messages= await Message.find(request)
 
         let result = messagesDataByTimeUnit(messages, timeUnit)
         res.json({ messages: result })
