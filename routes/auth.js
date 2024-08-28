@@ -153,21 +153,4 @@ router.get ('/google/callback', async (req, res ) => {
 ); 
 
 
-
-/* 
-
-Route unused car redirection depuis la route call back pipedrive
-
-router.get('/google', (req, res) => {
-    const user_id = req.query.user_id
-    const company_id = req.query.company_id
-    const domain = req.query.domain
-
-
-    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_CALLBACK_URI}&response_type=code&access_type=offline&scope=${GOOGLE_SCOPE}&state=${user_id} ${company_id} ${domain}`)
-
-})
- */
-
-
 module.exports = router;
