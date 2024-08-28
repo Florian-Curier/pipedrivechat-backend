@@ -144,7 +144,7 @@ router.get ('/google/callback', async (req, res ) => {
                             google_email: profile.email
                         }}
         )
-    res.redirect(`http://localhost:3001/install-confirmation?domain=${splitState[2]}&client_id=${PIPEDRIVE_CLIENT_ID}&company_id=${splitState[1]}&user_id=${splitState[0]}`)
+    res.redirect(`https://pipedrivechat-frontend.vercel.app/install-confirmation?domain=${splitState[2]}&client_id=${PIPEDRIVE_CLIENT_ID}&company_id=${splitState[1]}&user_id=${splitState[0]}`)
 }    catch(err) {
     console.log(err)
     res.status(500).json({result: false, error: 'Sever Error'})
