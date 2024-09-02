@@ -27,7 +27,6 @@ router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:t
     
     const messages= await Message.find(request)
     console.log("MASSAGES : ", messages.length)
-      //  let filtreData = data.filter(message => message.alert_id.user_id !== null)
         let result = messagesDataByTimeUnit(messages, timeUnit)  
         res.json({ messages: result })
     })

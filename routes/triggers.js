@@ -1,8 +1,6 @@
 var express = require('express');
 var router = express.Router();
 
-// Ecrire les routes ici
-
 const Trigger = require("../models/triggers")
 
 router.get("/", (req, res) => {
@@ -13,3 +11,4 @@ router.get("/", (req, res) => {
 })
 
 module.exports = router;
+
