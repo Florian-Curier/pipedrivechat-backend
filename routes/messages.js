@@ -28,7 +28,7 @@ router.get('/all/:pipedrive_company_id/:pipedrive_user_id/:startDate/:endDate/:t
     const messages= await Message.find(request)
     console.log("MASSAGES : ", messages.length)
         let result = messagesDataByTimeUnit(messages, timeUnit)  
-        res.json({ messages: result })
+        res.json({ result: true, messages: result })
     })
 
 // Renvoie la liste de tous les messages de l'utilisateur correspondants à l'alert_id envoyé
@@ -38,7 +38,7 @@ router.get('/alert/:alert_id', (req, res) => {
     }
     Message.find({ alert_id: req.params.alert_id }).sort({creation_date:-1}) 
     .then(data => {
-        res.json({ messages: data })
+        res.json({ result: true, messages: data })
     })
 })
 
@@ -81,7 +81,7 @@ router.get('/channel/:google_channel_id/:startDate/:endDate/:timeUnit', async (r
     const messages= await Message.find(request)
 
         let result = messagesDataByTimeUnit(messages, timeUnit)
-        res.json({ messages: result })
+        res.json({ result: true, messages: result })
     })
 
 // Route de reception des webhook pipedrive et envoi message à google
