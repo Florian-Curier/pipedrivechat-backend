@@ -7,7 +7,7 @@ it('GET messages/channel/:google_channel_id/:startDate/:endDate/:timeUnit', asyn
 
 	expect(res.statusCode).toBe(200)
 	expect(res.body.result).toEqual(true)
-	expect(res.body.result).toEqual([
+	expect(res.body.messages).toEqual([
 		{
 		  "time": "2024",
 		  "value": 1
